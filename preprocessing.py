@@ -3,6 +3,7 @@ import numpy as np
 import re
 import os
 import pickle
+from datetime import datetime
 import nltk
 from nltk.corpus import stopwords
 from nltk.tokenize import RegexpTokenizer
@@ -103,9 +104,22 @@ def preprocess_text(text):
     return " ".join(lemmatized_words)
 
 if __name__ == "__main__":
-    TFIDF_PATH = "tfidf_vectoriser.pkl"
-    MLP_PATH = "mlp_model.pkl"
     DATA_PATH = "social-media-release.csv"
+    TFIDF_DIR = "saves/tfidf"
+    RUNS_DIR = "saves/runs"
+
+    os.makedirs(TFIDF_DIR, exist_ok=True)
+    os.makedirs(RUNS_DIR, exist_ok=True)
+
+    TFIDF_PATH = os.path.join(TFIDF_DIR, "tfidf_vectoriser.pkl")
+
+    run_id = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+    RUN_DIR = os.path.join(RUNS_DIR, run_id)
+    os.makedirs(RUN_DIR)
+
+    MLP_PATH = os.path.join(RUN_DIR, "mlp_model.pkl")
+    CONFIG_PATH = os.path.join(RUN_DIR, "config.txt")
+
 
     # -----------------------------
     # Load & inspect data
@@ -144,7 +158,7 @@ if __name__ == "__main__":
     # TF-IDF: load or train
     # -----------------------------
     if os.path.exists(TFIDF_PATH):
-        print("Loading TF-IDF vectoriser...")
+        print("Loading existing TF-IDF vectoriser...")
         with open(TFIDF_PATH, "rb") as f:
             tfidf = pickle.load(f)
     else:
@@ -161,6 +175,7 @@ if __name__ == "__main__":
         with open(TFIDF_PATH, "wb") as f:
             pickle.dump(tfidf, f)
 
+
     # Vectorise (always fast)
     X_train_vec = tfidf.transform(X_train)
     X_val_vec   = tfidf.transform(X_val)
@@ -171,13 +186,7 @@ if __name__ == "__main__":
     # -----------------------------
     # MLP: load or train
     # -----------------------------
-    if os.path.exists(MLP_PATH):
-        print("Loading trained MLP model...")
-        with open(MLP_PATH, "rb") as f:
-            mlp = pickle.load(f)
-    else:
-        print("Training MLP model...")
-        mlp = MLPClassifier(
+    mlp = MLPClassifier(
             hidden_layer_sizes=(128,),
             activation="relu",
             solver="adam",
@@ -188,10 +197,11 @@ if __name__ == "__main__":
             random_state=42
         )
 
-        mlp.fit(X_train_vec, y_train)
+    mlp.fit(X_train_vec, y_train)
 
-        with open(MLP_PATH, "wb") as f:
-            pickle.dump(mlp, f)
+    with open(MLP_PATH, "wb") as f:
+        pickle.dump(mlp, f)
+        
 
     # -----------------------------
     # Validation evaluation
@@ -202,6 +212,13 @@ if __name__ == "__main__":
     print("Validation precision:", precision_score(y_val, y_val_pred))
     print("Validation recall:", recall_score(y_val, y_val_pred))
     print("Validation F1:", f1_score(y_val, y_val_pred))
+
+    with open(CONFIG_PATH, "w") as f:
+        f.write("MLP configuration:\n")
+        f.write("hidden_layer_sizes=(128,)\n")
+        f.write("learning_rate_init=0.001\n")
+        f.write("early_stopping=True\n")
+
 
 
 '''
