@@ -1,6 +1,8 @@
 import pandas as pd
 import numpy as np
 import re
+import os
+import pickle
 import nltk
 from nltk.corpus import stopwords
 from nltk.tokenize import RegexpTokenizer
@@ -100,11 +102,121 @@ def preprocess_text(text):
     #print(lemmatized_words)
     return " ".join(lemmatized_words)
 
+if __name__ == "__main__":
+    TFIDF_PATH = "tfidf_vectoriser.pkl"
+    MLP_PATH = "mlp_model.pkl"
+    DATA_PATH = "social-media-release.csv"
 
+    # -----------------------------
+    # Load & inspect data
+    # -----------------------------
+    df = load_data(DATA_PATH)
+
+    dataset_overview(df)
+    missing_values(df)
+    class_distribution(df)
+    text_statistics(df)
+
+    # -----------------------------
+    # Preprocess text
+    # -----------------------------
+    df["clean_post"] = df["post"].apply(preprocess_text)
+
+    X = df["clean_post"]
+    y = df["class_label"]
+
+    # -----------------------------
+    # Train / val / test split
+    # -----------------------------
+    X_train, X_temp, y_train, y_temp = train_test_split(
+        X, y, test_size=0.30, stratify=y, random_state=42
+    )
+
+    X_val, X_test, y_val, y_test = train_test_split(
+        X_temp, y_temp, test_size=0.50, stratify=y_temp, random_state=42
+    )
+
+    print("Train size:", len(X_train))
+    print("Validation size:", len(X_val))
+    print("Test size:", len(X_test))
+
+    # -----------------------------
+    # TF-IDF: load or train
+    # -----------------------------
+    if os.path.exists(TFIDF_PATH):
+        print("Loading TF-IDF vectoriser...")
+        with open(TFIDF_PATH, "rb") as f:
+            tfidf = pickle.load(f)
+    else:
+        print("Training TF-IDF vectoriser...")
+        tfidf = TfidfVectorizer(
+            max_features=8000,
+            min_df=5,
+            max_df=0.9,
+            ngram_range=(1, 2),
+            sublinear_tf=True
+        )
+        tfidf.fit(X_train)
+
+        with open(TFIDF_PATH, "wb") as f:
+            pickle.dump(tfidf, f)
+
+    # Vectorise (always fast)
+    X_train_vec = tfidf.transform(X_train)
+    X_val_vec   = tfidf.transform(X_val)
+    X_test_vec  = tfidf.transform(X_test)
+
+    print("TF-IDF train shape:", X_train_vec.shape)
+
+    # -----------------------------
+    # MLP: load or train
+    # -----------------------------
+    if os.path.exists(MLP_PATH):
+        print("Loading trained MLP model...")
+        with open(MLP_PATH, "rb") as f:
+            mlp = pickle.load(f)
+    else:
+        print("Training MLP model...")
+        mlp = MLPClassifier(
+            hidden_layer_sizes=(128,),
+            activation="relu",
+            solver="adam",
+            learning_rate_init=0.001,
+            max_iter=200,
+            early_stopping=True,
+            n_iter_no_change=5,
+            random_state=42
+        )
+
+        mlp.fit(X_train_vec, y_train)
+
+        with open(MLP_PATH, "wb") as f:
+            pickle.dump(mlp, f)
+
+    # -----------------------------
+    # Validation evaluation
+    # -----------------------------
+    y_val_pred = mlp.predict(X_val_vec)
+
+    print("Validation accuracy:", accuracy_score(y_val, y_val_pred))
+    print("Validation precision:", precision_score(y_val, y_val_pred))
+    print("Validation recall:", recall_score(y_val, y_val_pred))
+    print("Validation F1:", f1_score(y_val, y_val_pred))
+
+
+'''
 # -----------------------------
 # Main execution
 # -----------------------------
 if __name__ == "__main__":
+
+    if os.path.exists("tfidf_vectoriser.pkl"):
+        pass
+        #do the stuff
+    else:
+        pass
+        #load in the csv
+
     data_path = "social-media-release.csv"
     df = load_data(data_path)
 
@@ -184,3 +296,4 @@ if __name__ == "__main__":
     print("Validation precision:", val_precision)
     print("Validation recall:", val_recall)
     print("Validation F1:", val_f1)
+'''
