@@ -1,0 +1,4 @@
+MLP configuration:
+hidden_layer_sizes=(128,)
+learning_rate_init=0.001
+early_stopping=True

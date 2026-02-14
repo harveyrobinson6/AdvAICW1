@@ -3,6 +3,7 @@ import numpy as np
 import re
 import os
 import pickle
+import io
 from datetime import datetime
 import nltk
 from nltk.corpus import stopwords
@@ -105,7 +106,7 @@ def preprocess_text(text):
 
 if __name__ == "__main__":
     DATA_PATH = "social-media-release.csv"
-    TFIDF_DIR = "saves/tfidf"
+    TFIDF_DIR = "saves/current_tfidf"
     RUNS_DIR = "saves/runs"
 
     os.makedirs(TFIDF_DIR, exist_ok=True)
@@ -119,6 +120,7 @@ if __name__ == "__main__":
 
     MLP_PATH = os.path.join(RUN_DIR, "mlp_model.pkl")
     CONFIG_PATH = os.path.join(RUN_DIR, "config.txt")
+    THIS_RUN_TFIDF_PATH = os.path.join(RUN_DIR, "tfidf.pkl")
 
 
     # -----------------------------
@@ -175,6 +177,9 @@ if __name__ == "__main__":
         with open(TFIDF_PATH, "wb") as f:
             pickle.dump(tfidf, f)
 
+        with open(THIS_RUN_TFIDF_PATH, "wb") as f:
+            pickle.dump(tfidf, f)
+
 
     # Vectorise (always fast)
     X_train_vec = tfidf.transform(X_train)
@@ -207,6 +212,8 @@ if __name__ == "__main__":
     # Validation evaluation
     # -----------------------------
     y_val_pred = mlp.predict(X_val_vec)
+
+    output_buffer = io.StringIO()
 
     print("Validation accuracy:", accuracy_score(y_val, y_val_pred))
     print("Validation precision:", precision_score(y_val, y_val_pred))
