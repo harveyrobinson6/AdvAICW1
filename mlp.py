@@ -72,6 +72,7 @@ if __name__ == "__main__":
     DATA_INFO_PATH = os.path.join(RUN_DIR, "datainfo.txt")
     THIS_RUN_TFIDF_PATH = os.path.join(RUN_DIR, "tfidf.pkl")
     RESULTS_PATH = os.path.join(RUN_DIR, "metrics.txt")
+    MLP_CONFIG_PATH = os.path.join(RUN_DIR, "mlp_config.txt")
     
     with open(NLP_CONFIG_PATH, "w") as f:
         f.write("lowercase=" + str(results[0]) + "\n")
@@ -115,10 +116,12 @@ if __name__ == "__main__":
     
     print("Training TF-IDF vectoriser...")
     tfidf = TfidfVectorizer(
-        max_features=8000,
+        #max_features=8000,
+        max_features=15000,
         min_df=5,
         max_df=0.9,
-        ngram_range=(1, 2),
+        #ngram_range=(1, 2),
+        ngram_range=(1, 3),
         sublinear_tf=True
     )
     tfidf.fit(X_train)
@@ -134,16 +137,22 @@ if __name__ == "__main__":
     print("TF-IDF train shape:", X_train_vec.shape)
     
     mlp = MLPClassifier(
-            hidden_layer_sizes=(128,),
+            #hidden_layer_sizes=(128,),
+            hidden_layer_sizes=(256,128,64),
             activation="relu",
             solver="adam",
-            learning_rate_init=0.001,
-            max_iter=200,
+            learning_rate_init=0.0001, #0.001
+            max_iter=500, #200
             early_stopping=True,
-            n_iter_no_change=5,
-            random_state=42
+            n_iter_no_change=10, #10
+            random_state=42,
+            alpha=0.0001
         )
     
+    with open(MLP_CONFIG_PATH, "w") as f:
+        for k, v in mlp.get_params().items():
+            f.write(f"{k}: {v}\n")
+
     mlp.fit(X_train_vec, y_train)
 
     with open(MLP_PATH, "wb") as f:

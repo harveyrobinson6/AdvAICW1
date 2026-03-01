@@ -9,8 +9,12 @@ from nltk.tokenize import RegexpTokenizer
 from nltk.corpus import stopwords
 from nltk.stem import WordNetLemmatizer
 from nltk.stem import PorterStemmer
+from tensorflow import keras
+from tensorflow.keras.preprocessing.sequence import pad_sequences
 
-RUNS_DIR = "saves/runs"
+RUNS_DIR = ""
+MLP_DIR = "saves/mlp/runs"
+CNN_DIR = "saves/cnn/runs"
 
 
 # -----------------------------
@@ -74,6 +78,18 @@ def format_nlp_techniques(config):
 # -----------------------------
 # List runs
 # -----------------------------
+
+while True:
+    choice = input("\n'mlp' or 'cnn' ")
+    if choice == "mlp":
+        RUNS_DIR = MLP_DIR
+        break
+    elif choice == "cnn":
+        RUNS_DIR = CNN_DIR
+        break
+    else:
+        print("Input 'mlp' or 'cnn'")
+
 runs = sorted(os.listdir(RUNS_DIR))
 
 if len(runs) == 0:
@@ -107,13 +123,27 @@ nlp_config = load_nlp_config(config_path)
 print("\nLoading run:", selected_run)
 
 # -----------------------------
-# Load model + tfidf
+# Load model
 # -----------------------------
-with open(os.path.join(run_path, "mlp_model.pkl"), "rb") as f:
-    model = pickle.load(f)
+if RUNS_DIR == MLP_DIR:
 
-with open(os.path.join(run_path, "tfidf.pkl"), "rb") as f:
-    tfidf = pickle.load(f)
+    with open(os.path.join(run_path, "mlp_model.pkl"), "rb") as f:
+        model = pickle.load(f)
+
+    with open(os.path.join(run_path, "tfidf.pkl"), "rb") as f:
+        tfidf = pickle.load(f)
+
+    model_type = "mlp"
+
+else:
+
+    model = keras.models.load_model(os.path.join(run_path, "cnn_model.keras"))
+
+    with open(os.path.join(run_path, "tokenizer.pkl"), "rb") as f:
+        tokenizer = pickle.load(f)
+
+    MAX_LEN = 200
+    model_type = "cnn"
 
 print("Model loaded successfully.\n")
 techs = format_nlp_techniques(nlp_config)
@@ -136,12 +166,21 @@ while True:
     remove_stopwords=nlp_config["remove_stopwords"],
     lemmatize=nlp_config["lemmatization"],
     stem=nlp_config["stemming"]
-)
+    )
 
-    vec = tfidf.transform([clean])
+    if model_type == "mlp":
 
-    prediction = model.predict(vec)[0]
+        vec = tfidf.transform([clean])
+        prediction = model.predict(vec)[0]
 
-    print("Input after processing: ", clean)
-    print("Prediction: ", prediction)
+    else:
+
+        seq = tokenizer.texts_to_sequences([clean])
+        pad = pad_sequences(seq, maxlen=MAX_LEN)
+
+        prob = model.predict(pad)[0][0]
+        prediction = int(prob > 0.5)
+
+    print("Input after processing:", clean)
+    print("Prediction:", prediction)
     print()

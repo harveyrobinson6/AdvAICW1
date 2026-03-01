@@ -1,0 +1,5 @@
+lowercase=True
+remove_urls=True
+remove_stopwords=True
+lemmatization=True
+stemming=False
