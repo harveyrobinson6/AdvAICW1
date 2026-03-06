@@ -1,8 +1,0 @@
-CNN configuration
-embedding_dim=128
-filters=128
-kernel_size=5
-dense_units=64
-dropout=0.3
-epochs=5
-batch_size=32

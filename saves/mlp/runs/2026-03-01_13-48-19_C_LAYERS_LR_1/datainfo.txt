@@ -1,6 +1,0 @@
-
-Text length statistics:
-Min length:3
-Max length:993
-Mean length:230.26
-Median length:249.0

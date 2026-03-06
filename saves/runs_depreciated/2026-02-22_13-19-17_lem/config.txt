@@ -1,9 +1,0 @@
-MLP configuration:
-hidden_layer_sizes=(128,)
-learning_rate_init=0.001
-early_stopping=True
-lowercase=True
-remove urls=True
-remove stopwords=True
-lemmatization=True
-stemming=False
