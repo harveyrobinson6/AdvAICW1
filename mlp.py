@@ -67,7 +67,7 @@ if __name__ == "__main__":
     os.makedirs(RUN_DIR)
 
     MLP_PATH = os.path.join(RUN_DIR, "mlp_model.pkl")
-    CONFIG_PATH = os.path.join(RUN_DIR, "config.txt")
+    #CONFIG_PATH = os.path.join(RUN_DIR, "config.txt")
     NLP_CONFIG_PATH = os.path.join(RUN_DIR, "nlpconfig.txt")
     DATA_INFO_PATH = os.path.join(RUN_DIR, "datainfo.txt")
     THIS_RUN_TFIDF_PATH = os.path.join(RUN_DIR, "tfidf.pkl")
@@ -88,7 +88,13 @@ if __name__ == "__main__":
     datastats.class_distribution(df)
     datastats.text_statistics(df, DATA_INFO_PATH)
     
-    df["clean_post"] = df["post"].apply(
+    df["text"] = df["post"]
+
+    if "news_headline" in df.columns:
+        df["text"] = df["news_headline"].fillna("") + " " + df["post"]
+
+    #"post"
+    df["clean_post"] = df["text"].apply(
     lambda x: preprocessing.preprocess_text(
         x,
         lowercase=results[0],
@@ -138,10 +144,10 @@ if __name__ == "__main__":
     
     mlp = MLPClassifier(
             #hidden_layer_sizes=(128,),
-            hidden_layer_sizes=(256,128,64),
+            hidden_layer_sizes=(128,64),
             activation="relu",
             solver="adam",
-            learning_rate_init=0.0001, #0.001
+            learning_rate_init=0.0005, #0.001
             max_iter=500, #200
             early_stopping=True,
             n_iter_no_change=10, #10

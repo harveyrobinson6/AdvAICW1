@@ -5,6 +5,8 @@
 import os
 import pickle
 import re
+import pandas as pd
+import sys
 from nltk.tokenize import RegexpTokenizer
 from nltk.corpus import stopwords
 from nltk.stem import WordNetLemmatizer
@@ -154,33 +156,107 @@ print("This model uses the following NLP techniques:", techs)
 # -----------------------------
 while True:
 
-    text = input("Enter text (or type quit): ")
+    print("\nInput method:")
+    print("1 - Enter text manually")
+    print("2 - Load CSV file")
+    print("exit - exit")
 
-    if text.lower() == "quit":
-        break
+    choice = input("Select option: ")
 
-    clean = preprocess_text(
-    text,
-    lowercase=nlp_config["lowercase"],
-    remove_urls=nlp_config["remove_urls"],
-    remove_stopwords=nlp_config["remove_stopwords"],
-    lemmatize=nlp_config["lemmatization"],
-    stem=nlp_config["stemming"]
-    )
+    if choice == "1":
+        while True:
 
-    if model_type == "mlp":
+            headline = input("\nHeadline (optional): ")
+            post = input("Post text: ")
 
-        vec = tfidf.transform([clean])
-        prediction = model.predict(vec)[0]
+            if post.lower() == "exit":
+                break
+
+            combined = headline + " " + post
+
+            clean_text = preprocess_text(
+                combined,
+                nlp_config["lowercase"],
+                nlp_config["remove_urls"],
+                nlp_config["remove_stopwords"],
+                nlp_config["lemmatization"],
+                nlp_config["stemming"]
+            )
+
+            if model_type == "mlp":
+
+                vec = tfidf.transform([clean_text])
+                prediction = model.predict(vec)[0]
+
+            else:
+
+                seq = tokenizer.texts_to_sequences([clean_text])
+                pad = pad_sequences(seq, maxlen=MAX_LEN)
+
+                prob = model.predict(pad)[0][0]
+                prediction = int(prob > 0.5)
+
+            print("Input after processing:", clean_text)
+            print("Prediction:", prediction)
+            print()
+
+    elif choice == "2":
+
+        csv_path = input("Enter CSV file path: ")
+
+        df = pd.read_csv(csv_path)
+
+        # ensure columns exist
+        if "post" not in df.columns:
+            print("CSV must contain a 'post' column.")
+            exit()
+
+        if "news_headline" not in df.columns:
+            df["news_headline"] = ""
+
+        df["text"] = df["news_headline"].fillna("") + " " + df["post"].fillna("")
+
+        df["clean_text"] = df["text"].apply(
+            lambda x: preprocess_text(
+                x,
+                nlp_config["lowercase"],
+                nlp_config["remove_urls"],
+                nlp_config["remove_stopwords"],
+                nlp_config["lemmatization"],
+                nlp_config["stemming"]
+            )
+        )
+
+        # ---------- MLP ----------
+        if model_type == "mlp":
+
+            vec = tfidf.transform(df["clean_text"])
+            preds = model.predict(vec)
+
+            if hasattr(model, "predict_proba"):
+                probs = model.predict_proba(vec)[:,1]
+            else:
+                probs = preds
+
+        # ---------- CNN ----------
+        else:
+
+            seq = tokenizer.texts_to_sequences(df["clean_text"])
+            pad = pad_sequences(seq, maxlen=MAX_LEN)
+
+            probs = model.predict(pad).flatten()
+            preds = (probs > 0.5).astype(int)
+
+        df["misinfo_probability"] = probs
+        df["prediction"] = preds
+
+        output_path = "predictions.csv"
+        df.to_csv(output_path, index=False)
+
+        print(f"\nPredictions saved to {output_path}")
+
+    elif choice == "exit":
+        sys.exit()
 
     else:
-
-        seq = tokenizer.texts_to_sequences([clean])
-        pad = pad_sequences(seq, maxlen=MAX_LEN)
-
-        prob = model.predict(pad)[0][0]
-        prediction = int(prob > 0.5)
-
-    print("Input after processing:", clean)
-    print("Prediction:", prediction)
-    print()
+        print("Invalid Input")
