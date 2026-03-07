@@ -1,6 +1,7 @@
 import os
 import pickle
 import re
+import pandas as pd
 from nltk.tokenize import RegexpTokenizer
 from nltk.corpus import stopwords
 from nltk.stem import WordNetLemmatizer
@@ -136,43 +137,103 @@ topics = get_topic_words(lda, vectorizer)
 print("\nPreprocessing techniques used:")
 print(format_nlp_techniques(nlp_config))
 
-print("\nType text to analyse topics (type 'exit' to quit)\n")
+#print("\nType text to analyse topics (type 'exit' to quit)\n")
 
-while True:
+print("\n1 : Analyse text manually")
+print("2 : Analyse CSV file")
 
-    user_input = ""
-    headline = input("Headline (optional): ")
-    post = input("Post text: ")
+choice = input("Select option: ").strip()
 
-    if headline.strip() == "":
-        user_input = post
-    else:
-        user_input = headline + " " + post
+if choice == "1":
 
-    if user_input.lower() == "exit":
-        break
+    print("\nType text to analyse topics (type 'exit' to quit)\n")
 
-    clean_text = preprocess_text(
-        user_input,
-        nlp_config["lowercase"],
-        nlp_config["remove_urls"],
-        nlp_config["remove_stopwords"],
-        nlp_config["lemmatization"],
-        nlp_config["stemming"]
+    while True:
+
+        headline = input("Headline (optional): ")
+        post = input("Post text: ")
+
+        if post.lower() == "exit":
+            break
+
+        if headline.strip() == "":
+            user_input = post
+        else:
+            user_input = headline + " " + post
+
+        clean_text = preprocess_text(
+            user_input,
+            nlp_config["lowercase"],
+            nlp_config["remove_urls"],
+            nlp_config["remove_stopwords"],
+            nlp_config["lemmatization"],
+            nlp_config["stemming"]
+        )
+
+        X_input = vectorizer.transform([clean_text])
+        topic_probs = lda.transform(X_input)[0]
+
+        top_topics = topic_probs.argsort()[-3:][::-1]
+
+        print("\nProcessed text:", clean_text)
+        print("\nTop predicted topics:\n")
+
+        for t in top_topics:
+            topic_words = " ".join(topics[t])
+            print(f"Topic {t}")
+            print(f"Words: {topic_words}")
+            print(f"Probability: {topic_probs[t]:.3f}\n")
+
+
+elif choice == "2":
+
+    csv_path = input("\nEnter CSV file path: ")
+
+    df = pd.read_csv(csv_path)
+
+    # Ensure post column exists
+    if "post" not in df.columns:
+        print("CSV must contain a 'post' column.")
+        exit()
+
+    # Headline may not exist
+    if "news_headline" not in df.columns:
+        df["news_headline"] = ""
+
+    # Combine text
+    df["text"] = df["news_headline"].fillna("") + " " + df["post"].fillna("")
+
+    # Preprocess
+    df["clean_text"] = df["text"].apply(
+        lambda x: preprocess_text(
+            x,
+            nlp_config["lowercase"],
+            nlp_config["remove_urls"],
+            nlp_config["remove_stopwords"],
+            nlp_config["lemmatization"],
+            nlp_config["stemming"]
+        )
     )
 
-    X_input = vectorizer.transform([clean_text])
+    # Vectorise
+    X = vectorizer.transform(df["clean_text"])
 
-    topic_probs = lda.transform(X_input)[0]
+    # Get topic probabilities
+    topic_probs = lda.transform(X)
 
-    # Top 3 topics
-    top_topics = topic_probs.argsort()[-3:][::-1]
+    # Get dominant topic
+    df["dominant_topic"] = topic_probs.argmax(axis=1)
 
-    print("\nProcessed text:", clean_text)
+    # Store top 3 topics
+    df["top_topic_1"] = topic_probs.argsort(axis=1)[:, -1]
+    df["top_topic_2"] = topic_probs.argsort(axis=1)[:, -2]
+    df["top_topic_3"] = topic_probs.argsort(axis=1)[:, -3]
 
-    print("\nTop predicted topics:\n")
+    # Save probabilities optionally
+    for i in range(topic_probs.shape[1]):
+        df[f"topic_{i}_prob"] = topic_probs[:, i]
 
-    for t in top_topics:
-        topic_words = " ".join(topics[t])
-        print(f"Topic words: {topic_words}")
-        print(f"Probability: {topic_probs[t]:.3f}\n")
+    output_path = "lda_predictions.csv"
+    df.to_csv(output_path, index=False)
+
+    print(f"\nResults saved to {output_path}")

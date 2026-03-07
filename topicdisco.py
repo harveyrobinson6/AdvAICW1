@@ -1,3 +1,20 @@
+'''
+
+100285823 - Latent Dirichlet Allocation
+
+PIPELINE:
+
+Dataset
+Preprocessing
+NLU Intent Extraction
+Vectorisation (BOW / TF-IDF)
+LDA Topic Modelling
+Assign topic to each document
+Topic analysis
+Metrics and graphs
+
+'''
+
 import pandas as pd
 import sys
 import os
@@ -18,11 +35,16 @@ def load_data(path):
     df = pd.read_csv(path)
     return df
 
+#extract top words per topic
 def get_topics(model, vectorizer, top_n=10):
 
+    #get vocabulary words from the vectorizer
     words = vectorizer.get_feature_names_out()
     topics = []
 
+    #loop through each discovered topic
+    #select top N words with highest probability in this topic
+    #store topic id and its important words
     for topic_idx, topic in enumerate(model.components_):
         top_words = [words[i] for i in topic.argsort()[-top_n:]]
         topics.append((topic_idx, top_words))
@@ -31,8 +53,12 @@ def get_topics(model, vectorizer, top_n=10):
 
 def print_topics(model, vectorizer, top_n=10):
 
+    #get vocabulary words from the vectorizer
     words = vectorizer.get_feature_names_out()
 
+    #loop through each topic
+    #get top words for this topic
+    #print topic summary
     for topic_idx, topic in enumerate(model.components_):
 
         top_words = [words[i] for i in topic.argsort()[-top_n:]]
@@ -47,17 +73,19 @@ def extract_intents(text):
 
     for token in doc:
 
-        # direct object relationship
+        #look for direct object dependency (verb-object relationship)
         if token.dep_ == "dobj":
 
+            #get the verb connected to this object
             verb = token.head.text
             objs = [token.text]
 
-            # handle "pizza and cola"
+            #handle multiple objects like "pizza and cola"
             for child in token.children:
                 if child.dep_ == "conj":
                     objs.append(child.text)
 
+            #create verb-object intent pairs
             for obj in objs:
                 intents.append(f"{verb}_{obj}")
 
@@ -70,7 +98,7 @@ if __name__ == "__main__":
 
     os.makedirs(RUNS_DIR, exist_ok=True)
 
-    # Ask user for run name
+    #ask user for run name
     run_name = input("Enter a name for this run: ").strip()
     #lower, urls, stopwords, lemmatizer, stemming
     techniques = ["lowercase", "remove urls", "remove stopwords", "lemmatize", "stem"]
@@ -88,10 +116,13 @@ if __name__ == "__main__":
             else:
                 print("Invalid input. Please type 'y' or 'n'.")
 
+    #lem and stem at the same time produces issues and poor results
+    #hard coded so only one can be selected
     if results[3] == True and results[4] == True:
         print("Lemmatization and stemming have both been selected... defaulting to just lemmatization")
         results[4] = False
 
+    #user selects text representation
     textrep = ""
     while True:
         answer = input("Bag of words (bow) or TF-IDF (t)?").strip().lower()
@@ -113,12 +144,15 @@ if __name__ == "__main__":
         elif answer == "n":
             sys.exit()
 
+    #makes a directory identified by a timestamp and name
     run_id = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-
     RUN_DIR = os.path.join(RUNS_DIR, f"{run_id}_{run_name}")
     os.makedirs(RUN_DIR)
 
+    #stores lda model using pickle
     LDA_PATH = os.path.join(RUN_DIR, "lda_model.pkl")
+
+    #stores vectorizer using pickle
     VECTORIZER_PATH = ""
 
     if textrep == "bow":
@@ -126,14 +160,28 @@ if __name__ == "__main__":
     elif textrep == "t":
         VECTORIZER_PATH = os.path.join(RUN_DIR, "tfidf.pkl")
 
+    #records topics
     TOPICS_PATH = os.path.join(RUN_DIR, "topics.txt")
+
+    #records results of nlu
     NLU_RESULTS_PATH = os.path.join(RUN_DIR, "nlu_topics.txt")
+
+    #records which nlp techniques were used
     NLP_CONFIG_PATH = os.path.join(RUN_DIR, "nlpconfig.txt")
+
+    #records the lda config
     LDA_CONFIG_PATH = os.path.join(RUN_DIR, "lda_config.txt")
+
+    #records metrics of the run
     METRICS_PATH = os.path.join(RUN_DIR, "metrics.txt")
+
+    #records information about the dataset
     DATA_INFO_PATH = os.path.join(RUN_DIR, "datainfo.txt")
+
+    #records topic results
     TOPIC_RESULTS_PATH = os.path.join(RUN_DIR, "topic_results.txt")
 
+    #saves which nlp techniques were used
     with open(NLP_CONFIG_PATH, "w") as f:
         f.write("lowercase=" + str(results[0]) + "\n")
         f.write("remove_urls=" + str(results[1]) + "\n")
@@ -141,20 +189,22 @@ if __name__ == "__main__":
         f.write("lemmatization=" + str(results[3]) + "\n")
         f.write("stemming=" + str(results[4]) + "\n")
         
+    #dataset loaded into pandas dataframe
     df = load_data(DATA_PATH)
 
+    #finds and writes info about the dataset
     datastats.dataset_overview(df)
     datastats.missing_values(df)
     datastats.class_distribution(df)
     datastats.text_statistics(df, DATA_INFO_PATH)
 
+    #post content is default input text
     df["post"] = df["post"].fillna("")
     df["news_headline"] = df["news_headline"].fillna("")
     
     df["text"] = df["news_headline"] + " " + df["post"]
 
-    #"post"
-
+    #applies preprocessing to every row
     df["clean_post"] = df["text"].apply(
     lambda x: preprocessing.preprocess_text(
         x,
@@ -202,7 +252,9 @@ if __name__ == "__main__":
     for intent, count in intent_counts[:10]:
         print(intent, count)
 
-    # Vectorization
+    #vectorization
+
+    #bag of words
     if textrep == "bow":
 
         vectorizer = CountVectorizer(
@@ -212,6 +264,7 @@ if __name__ == "__main__":
             token_pattern=r'\b[a-zA-Z]{3,}\b'
         )
 
+    #tf-idf
     else:
 
         vectorizer = TfidfVectorizer(
@@ -225,7 +278,7 @@ if __name__ == "__main__":
     with open(VECTORIZER_PATH, "wb") as f:
         pickle.dump(vectorizer, f)
 
-    # LDA
+    #LDA
     N_TOPICS = 10
 
     lda = LatentDirichletAllocation(
@@ -236,16 +289,16 @@ if __name__ == "__main__":
 
     lda.fit(X)
 
-    # Topic distribution per document
+    #topic distribution per document
     topic_distribution = lda.transform(X)
 
-    # Assign dominant topic
+    #each post gets most likely topic
     df["dominant_topic"] = topic_distribution.argmax(axis=1)
 
     with open(LDA_PATH, "wb") as f:
         pickle.dump(lda, f)
 
-    # Save config
+    #save config
     with open(LDA_CONFIG_PATH, "w") as f:
         f.write(f"topics={N_TOPICS}\n")
         f.write(f"text_representation={textrep}\n")
@@ -272,6 +325,7 @@ if __name__ == "__main__":
 
     print("\nTopic vs Class Label Distribution\n")
 
+    #relationship between topics and fake/real labels
     topic_class = pd.crosstab(
         df["dominant_topic"],
         df["class_label"],
