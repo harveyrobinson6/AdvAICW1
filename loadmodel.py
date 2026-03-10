@@ -18,10 +18,6 @@ RUNS_DIR = ""
 MLP_DIR = "saves/mlp/runs"
 CNN_DIR = "saves/cnn/runs"
 
-
-# -----------------------------
-# Preprocessing (same as training)
-# -----------------------------
 def preprocess_text(text, lowercase, remove_urls, remove_stopwords, lemmatize, stem):
 
     text = str(text)
@@ -76,11 +72,7 @@ def format_nlp_techniques(config):
 
     return ", ".join(enabled)
 
-
-# -----------------------------
-# List runs
-# -----------------------------
-
+#list runs
 while True:
     choice = input("\n'mlp' or 'cnn' ")
     if choice == "mlp":
@@ -103,9 +95,7 @@ print("\nAvailable Runs:\n")
 for i, run in enumerate(runs):
     print(f"{i} : {run}")
 
-# -----------------------------
-# Select run
-# -----------------------------
+#select run
 while True:
     try:
         choice = int(input("\nSelect run number: "))
@@ -124,9 +114,7 @@ nlp_config = load_nlp_config(config_path)
 
 print("\nLoading run:", selected_run)
 
-# -----------------------------
-# Load model
-# -----------------------------
+#load model
 if RUNS_DIR == MLP_DIR:
 
     with open(os.path.join(run_path, "mlp_model.pkl"), "rb") as f:
@@ -151,9 +139,7 @@ print("Model loaded successfully.\n")
 techs = format_nlp_techniques(nlp_config)
 print("This model uses the following NLP techniques:", techs)
 
-# -----------------------------
-# Interactive prediction
-# -----------------------------
+#interactive prediction
 while True:
 
     print("\nInput method:")
@@ -206,7 +192,7 @@ while True:
 
         df = pd.read_csv(csv_path)
 
-        # ensure columns exist
+        #ensure columns exist
         if "post" not in df.columns:
             print("CSV must contain a 'post' column.")
             exit()
@@ -227,7 +213,7 @@ while True:
             )
         )
 
-        # ---------- MLP ----------
+        #MLP
         if model_type == "mlp":
 
             vec = tfidf.transform(df["clean_text"])
@@ -238,7 +224,7 @@ while True:
             else:
                 probs = preds
 
-        # ---------- CNN ----------
+        #CNN
         else:
 
             seq = tokenizer.texts_to_sequences(df["clean_text"])

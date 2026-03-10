@@ -22,7 +22,7 @@ def preprocess_text(text, lowercase=True, removeurls=True, removestopwords=True,
 
     # remove stopwords
     if removestopwords:
-        custom_stopwords = {"read", "more", "click", "share"}
+        custom_stopwords = {"read", "more", "click", "share", "say", "says", "said"}
         stop_words = set(stopwords.words("english")).union(custom_stopwords)
         tokens = [w for w in tokens if w not in stop_words]
 

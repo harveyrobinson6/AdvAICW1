@@ -191,19 +191,19 @@ elif choice == "2":
 
     df = pd.read_csv(csv_path)
 
-    # Ensure post column exists
+    #mkae sure post column exists
     if "post" not in df.columns:
         print("CSV must contain a 'post' column.")
         exit()
 
-    # Headline may not exist
+    #headline may not exist
     if "news_headline" not in df.columns:
         df["news_headline"] = ""
 
-    # Combine text
+    #combine text
     df["text"] = df["news_headline"].fillna("") + " " + df["post"].fillna("")
 
-    # Preprocess
+    #preprocess
     df["clean_text"] = df["text"].apply(
         lambda x: preprocess_text(
             x,
@@ -215,13 +215,13 @@ elif choice == "2":
         )
     )
 
-    # Vectorise
+    #vectorise
     X = vectorizer.transform(df["clean_text"])
 
-    # Get topic probabilities
+    #get topic probabilities
     topic_probs = lda.transform(X)
 
-    # Get dominant topic
+    #get dominant topic
     df["dominant_topic"] = topic_probs.argmax(axis=1)
 
     # Store top 3 topics
@@ -229,7 +229,7 @@ elif choice == "2":
     df["top_topic_2"] = topic_probs.argsort(axis=1)[:, -2]
     df["top_topic_3"] = topic_probs.argsort(axis=1)[:, -3]
 
-    # Save probabilities optionally
+    #save probabilities optionally
     for i in range(topic_probs.shape[1]):
         df[f"topic_{i}_prob"] = topic_probs[:, i]
 

@@ -151,7 +151,7 @@ if __name__ == "__main__":
     #FIRST SPLIT => 70% training - 30% temporary
     X_train, X_temp, y_train, y_temp = train_test_split(
         X, y, test_size=0.30, stratify=y, random_state=42
-    )
+    )#0.30
 
     #SECOND SPLIT => 15% validation - 15% test
     X_val, X_test, y_val, y_test = train_test_split(
@@ -216,6 +216,7 @@ if __name__ == "__main__":
         n_iter_no_change=10,
         random_state=42,
         alpha=0.0001
+        #0.0001
     )
     
     #save all params to a file
