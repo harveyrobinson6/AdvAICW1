@@ -2,6 +2,26 @@
 #have user input number corresponding to array index of run
 #load that model and ask user for text input to predict
 
+'''
+Examples:
+
+Federal Reserve raises interest rates to combat inflation
+The Federal Reserve increased interest rates today as part of efforts to control rising inflation.
+^^^real
+
+Scientists warn about global vaccine conspiracy
+Big pharma and world governments are hiding the truth about vaccines and controlling the population.
+^^^misinfo
+
+Eviction moratorium ends across the United States
+@CNN Millions of renters could face eviction after the federal moratorium expired this week.
+^^^real
+
+Eviction moratorium ends across the United States
+@PatriotNews Democrats ended the eviction ban so Americans suffer while illegal immigrants get free housing.
+^^^misinformation but returns true, shows limitation of news style and social media style conflicts and contexts
+'''
+
 import os
 import pickle
 import re
@@ -172,18 +192,35 @@ while True:
             if model_type == "mlp":
 
                 vec = tfidf.transform([clean_text])
+
                 prediction = model.predict(vec)[0]
+
+                if hasattr(model, "predict_proba"):
+                    prob_real = model.predict_proba(vec)[0][1]
+                else:
+                    prob_real = prediction
 
             else:
 
                 seq = tokenizer.texts_to_sequences([clean_text])
                 pad = pad_sequences(seq, maxlen=MAX_LEN)
 
-                prob = model.predict(pad)[0][0]
-                prediction = int(prob > 0.5)
+                prob_real = model.predict(pad)[0][0]
+                prediction = int(prob_real > 0.5)
 
-            print("Input after processing:", clean_text)
-            print("Prediction:", prediction)
+
+            # Interpret prediction
+            if prediction == 1:
+                label = "Real News"
+            else:
+                label = "Misinformation"
+
+            prob_misinfo = 1 - prob_real
+
+            print("\nInput after processing:", clean_text)
+            print("Prediction:", label)
+            print("Real News Probability:", round(prob_real, 4))
+            print("Misinformation Probability:", round(prob_misinfo, 4))
             print()
 
     elif choice == "2":
@@ -213,29 +250,30 @@ while True:
             )
         )
 
-        #MLP
+        # MLP
         if model_type == "mlp":
 
             vec = tfidf.transform(df["clean_text"])
             preds = model.predict(vec)
 
             if hasattr(model, "predict_proba"):
-                probs = model.predict_proba(vec)[:,1]
+                probs_real = model.predict_proba(vec)[:,1]
             else:
-                probs = preds
+                probs_real = preds
 
-        #CNN
+        # CNN
         else:
 
             seq = tokenizer.texts_to_sequences(df["clean_text"])
             pad = pad_sequences(seq, maxlen=MAX_LEN)
 
-            probs = model.predict(pad).flatten()
-            preds = (probs > 0.5).astype(int)
+            probs_real = model.predict(pad).flatten()
+            preds = (probs_real > 0.5).astype(int)
 
-        df["misinfo_probability"] = probs
-        df["prediction"] = preds
+        df["real_news_probability"] = probs_real
+        df["misinformation_probability"] = 1 - probs_real
 
+        df["prediction"] = preds.map({1:"Real News", 0:"Misinformation"})
         output_path = "predictions.csv"
         df.to_csv(output_path, index=False)
 

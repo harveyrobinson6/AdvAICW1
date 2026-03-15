@@ -130,6 +130,9 @@ if __name__ == "__main__":
     if "news_headline" in df.columns:
         df["text"] = df["news_headline"].fillna("") + " " + df["post"]
 
+    print(df["class_label"].value_counts())
+    print(df[["post","class_label"]].head(20))
+
     #applies preprocessing to every row
     df["clean_post"] = df["text"].apply(
     lambda x: preprocessing.preprocess_text(

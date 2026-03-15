@@ -364,7 +364,7 @@ if __name__ == "__main__":
     plt.savefig(os.path.join(RUN_DIR, "topic_distribution.png"))
     plt.close()
 
-    # Metrics
+    #metrics
     perplexity = lda.perplexity(X)
 
     with open(METRICS_PATH, "w") as f:
